@@ -32,11 +32,11 @@ email_config = {
 }
 
 db_config = {
-    'user': os.getenv('DB_USER'),
-    'password': os.getenv('DB_PASSWORD'),
-    'host': os.getenv('DB_HOST'),
-    'port': os.getenv('DB_PORT'),
-    'database': 'prod_mon',
+    'user': os.getenv('DB_USER', 'stuser'),
+    'password': os.getenv('DB_PASSWORD', 'stp383'),
+    'host': os.getenv('DB_HOST', '10.4.1.245'),
+    'port': os.getenv('DB_PORT', '3306'),
+    'database': 'prodrptdb',
     'raise_on_warnings': True
 }
 
@@ -238,6 +238,86 @@ def report_html(start, end):
     return template.render(data=data, start=start, end=end)
 
 
+
+def testout():
+    parameters = [
+        ("50-9341", 0, ['1533']),
+        ("50-0455", 0, ['1812']),
+        ("50-1467", 0, ['650L', '650R', '769']),
+        ("50-3050", 0, ['769']),
+        ("50-8670", 0, ['1724', '1725', '1750']),
+        ("50-0450", 0, ['1724', '1725', '1750']),
+        ("50-5401", 0, ['1724', '1725', '1750']),
+        ("50-0447", 0, ['1724', '1725', '1750']),
+        ("50-5404", 0, ['1724', '1725', '1750']),
+        ("50-0519", 0, ['1724', '1725', '1750']),
+        ("50-4865", 0, ['1617']),
+        ("50-5081", 0, ['1617']),
+        ("50-4748", 0, ['797']),
+        ("50-3214", 0, ['1725']),
+        ("50-5214", 0, ['1725']),
+    ]
+
+    cnx = mysql.connector.connect(**db_config)
+    cursor = cnx.cursor()
+    start_date = '2023-10-2'
+    end_date = '2023-10-8'
+    part_amount_list = [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0]
+    part_index = 0
+
+    for row in parameters:
+        part = row[0]
+        machine_list = row[2]
+        for machine in machine_list:
+            query = ("SELECT CAST(SUM(Count) as INTEGER) FROM GFxPRoduction "
+             "WHERE Part = %s "
+             "AND Machine = %s "
+             "AND `TimeStamp` > UNIX_TIMESTAMP(DATE(%s)) AND UNIX_TIMESTAMP(DATE(%s));")
+            
+            cursor.execute(query, (part, machine, start_date, end_date))
+            #SELECT `TimeStamp`, SUM(Count) FROM GFxPRoduction
+#WHERE `TimeStamp` > UNIX_TIMESTAMP(DATE('2023-10-02'))
+#AND `TimeStamp` < UNIX_TIMESTAMP(DATE('2023-10-08')) LIMIT 10;
+            for x in cursor:
+                if x[0] != None:
+                    part_amount_list[part_index] += x[0]
+                #print(x[0])
+            
+        part_index += 1
+        
+            
+
+    print(part_amount_list)
+    query = ("SELECT Partlines.Line, SUM(tkb_scheduled.Hrs), tkb_scheduled.Part "
+             "FROM tkb_scheduled "
+             "LEFT JOIN PartLines "
+             "ON PartLines.Part = tkb_scheduled.Part "
+             "WHERE DATE(Date1) > DATE(%s) "
+             "AND DATE(Date1) < DATE(%s) "
+             "GROUP BY PartLines.Line, tkb_scheduled.Part;")
+    cursor.execute(query, (start_date, end_date))
+
+    for x in cursor:
+        print(x)
+    
+
+
+
+
+
+
+
+
+    cursor.close()
+    cnx.close()
+    
+
+
+    #for part in list
+    #for machine in machine list
+    #select SUM(count) where machine,part time range match
+    
+
 @logger.catch
 def main():
     offset = 0 if len(sys.argv) == 1 else int(sys.argv[1])
@@ -255,4 +335,4 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    testout()
